@@ -1,6 +1,7 @@
 // Asset Provider endpoints (no login). A draft is only reachable by its unguessable id.
 const express = require('express');
 const supabase = require('../db/supabaseClient');
+const { notifyRequestSent } = require('../utils/mailer');
 const { wrap, httpError, toApi, str, cleanUrl, isUuid, genTransferNo } = require('../utils/helpers');
 const {
   ELECTRICAL_ITEMS, MECHANICAL_ITEMS, MECHANICAL_STATUS_OPTIONS, instantiate,
@@ -34,11 +35,14 @@ const cleanPhotos = (arr) => {
 
 const cleanChecklist = (arr) => {
   if (!Array.isArray(arr)) throw httpError(400, 'Invalid checklist');
-  return arr.slice(0, 60).map((c) => ({
-    text: str(c && c.text).slice(0, 300),
-    checked: !!(c && c.checked),
-    remark: str(c && c.remark).slice(0, 500),
-  }));
+  return arr.slice(0, 80)
+    .map((c) => ({
+      text: str(c && c.text).slice(0, 300),
+      checked: !!(c && c.checked),
+      remark: str(c && c.remark).slice(0, 500),
+      custom: !!(c && c.custom),
+    }))
+    .filter((c) => c.text);
 };
 
 // Step 1: machine details -> creates the draft and auto-generates the transfer number.
@@ -48,7 +52,9 @@ router.post('/', wrap(async (req, res) => {
   const sapNo = str(b.sapNo).slice(0, 100);
   const equipmentNo = str(b.equipmentNo).slice(0, 100);
   const receiverEmail = str(b.receiverEmail).toLowerCase().slice(0, 200);
+  const providerEmail = str(b.providerEmail).toLowerCase().slice(0, 200);
   if (!machineName || !sapNo || !equipmentNo) throw httpError(400, 'Machine name, SAP number and equipment number are required');
+  if (!EMAIL_RE.test(providerEmail)) throw httpError(400, 'Enter a valid provider email');
   if (!EMAIL_RE.test(receiverEmail)) throw httpError(400, 'Enter a valid receiver email');
   const [src, dst] = await Promise.all([getPlant(b.sourcePlantId), getPlant(b.destinationPlantId)]);
   if (!src || !dst) throw httpError(400, 'Select valid source and destination plants');
@@ -65,6 +71,7 @@ router.post('/', wrap(async (req, res) => {
       destination_plant_id: dst.id,
       destination_plant_name: dst.name,
       receiver_email: receiverEmail,
+      provider_email: providerEmail,
       machine_photos: ['Front', 'Back', 'Left', 'Right'].map((label) => ({ label, url: '', remark: '' })),
       electrical_checklist: instantiate(ELECTRICAL_ITEMS),
       mechanical_checklist: instantiate(MECHANICAL_ITEMS),
@@ -91,6 +98,10 @@ router.patch('/:id', wrap(async (req, res) => {
   if ('receiverEmail' in b) {
     u.receiver_email = str(b.receiverEmail).toLowerCase().slice(0, 200);
     if (!EMAIL_RE.test(u.receiver_email)) throw httpError(400, 'Enter a valid receiver email');
+  }
+  if ('providerEmail' in b) {
+    u.provider_email = str(b.providerEmail).toLowerCase().slice(0, 200);
+    if (!EMAIL_RE.test(u.provider_email)) throw httpError(400, 'Enter a valid provider email');
   }
   if ('sourcePlantId' in b) {
     const p = await getPlant(b.sourcePlantId);
@@ -132,6 +143,7 @@ router.patch('/:id', wrap(async (req, res) => {
 function sendProblem(t) {
   if (!t.machine_name || !t.sap_no || !t.equipment_no) return 'Machine name, SAP number and equipment number are required';
   if (!t.source_plant_id || !t.destination_plant_id) return 'Select the source and destination plants again (a plant may have been removed)';
+  if (!EMAIL_RE.test(t.provider_email)) return 'Enter your (provider) email address';
   if (!EMAIL_RE.test(t.receiver_email)) return 'Enter a valid receiver email';
   const sides = (t.machine_photos || []).slice(0, 4);
   if (sides.length < 4 || sides.some((p) => !p.url)) return 'Photos of all four sides are required';
@@ -152,7 +164,11 @@ router.post('/:id/send', wrap(async (req, res) => {
     .update({ status: 'pending', sent_at: new Date().toISOString() })
     .eq('id', cur.id).select().single();
   if (error) throw error;
-  res.json(toApi(data));
+  const mail = await notifyRequestSent(data);
+  res.json({
+    ...toApi(data),
+    mail: { receiver: !!mail.receiver.sent, provider: !!mail.provider.sent, dev: !!(mail.receiver.dev || mail.provider.dev) },
+  });
 }));
 
 module.exports = router;

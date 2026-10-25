@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 
 // Label above, optional counter + hint below (same order as the reference form).
@@ -36,10 +36,15 @@ export function Spinner() {
 const NAV = [['/provider', 'Provider'], ['/receiver', 'Receiver'], ['/admin', 'Admin']];
 
 export function SiteHeader({ right }) {
+  const [logoOk, setLogoOk] = useState(true);
   return (
     <header className="site-header">
       <div className="site-header-in">
-        <Link to="/" className="brand"><b>MAT</b><span>ASSET TRANSFER</span></Link>
+        <Link to="/" className="brand" aria-label="RANE home">
+          {logoOk
+            ? <img src="/logo.png" alt="RANE" onError={() => setLogoOk(false)} />
+            : <><b>RANE</b><span>ASSET TRANSFER</span></>}
+        </Link>
         <nav className="nav">
           {NAV.map(([to, label]) => (
             <NavLink key={to} to={to} className={({ isActive }) => (isActive ? 'active' : '')}>{label}</NavLink>

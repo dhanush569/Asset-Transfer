@@ -1,37 +1,37 @@
-// Condensed checklists. Each transfer gets a flat list of
-// { text, checked, remark } items built from these.
+// Short keyword checklists. Each transfer gets a flat list of
+// { text, checked, remark } items built from these. Providers can also add custom items.
 const ELECTRICAL_ITEMS = [
-  'Physically intact — no cracks, dents, exposed parts, or burn/melt marks',
-  'Wiring and connections secure — no fraying, loose terminals, or damaged insulation',
-  'Proper earthing — no leakage current or short circuit',
-  'Protection devices (fuse/MCB/RCCB) and emergency stop functional',
-  'Starts, runs and stops normally — no abnormal noise, heat, or tripping',
-  'Switches, relays, motors, sensors and indicators work correctly',
-  'No moisture, dust, or chemical ingress affecting components',
-  'No sparking, burning smell, or repeated trips during operation',
-  'Voltage/current/load within rated limits',
-  'Maintenance, inspection and calibration records up to date',
+  'Physical condition',
+  'Wiring & connections',
+  'Earthing',
+  'Protection devices & E-stop',
+  'Start / run / stop',
+  'Switches, relays & sensors',
+  'Moisture & dust',
+  'Sparking / burning smell',
+  'Voltage & load',
+  'Maintenance records',
 ];
 
 const MECHANICAL_ITEMS = [
-  'Physically intact — no cracks, fractures, deformation or missing parts',
-  'No excessive wear, corrosion, or surface damage',
-  'Dimensions and alignment within tolerance',
-  'Fasteners, joints and welds secure and properly torqued',
-  'Bearings, shafts and gears rotate smoothly — no abnormal noise/play',
-  'Belts, chains and couplings correctly tensioned and aligned',
-  'Seals intact, no leakage; lubrication adequate',
-  'Hydraulic/pneumatic lines and moving parts free of leaks or jams',
-  'Normal vibration, noise and operating temperature',
-  'Guards and safety covers intact and securely fitted',
-  'No overload — starts, operates and stops as intended',
-  'Maintenance up to date, no overdue critical service',
+  'Physical condition',
+  'Wear & corrosion',
+  'Dimensions & alignment',
+  'Fasteners & welds',
+  'Bearings, shafts & gears',
+  'Belts, chains & couplings',
+  'Seals & lubrication',
+  'Hydraulic / pneumatic',
+  'Vibration, noise & heat',
+  'Guards & safety covers',
+  'Overload & operation',
+  'Maintenance records',
 ];
 
 const MECHANICAL_STATUS_OPTIONS = [
   'Good', 'Serviceable', 'Worn', 'Damaged', 'Faulty', 'Unsafe', 'Under Maintenance', 'Decommissioned',
 ];
 
-const instantiate = (items) => items.map((text) => ({ text, checked: false, remark: '' }));
+const instantiate = (items) => items.map((text) => ({ text, checked: false, remark: '', custom: false }));
 
 module.exports = { ELECTRICAL_ITEMS, MECHANICAL_ITEMS, MECHANICAL_STATUS_OPTIONS, instantiate };

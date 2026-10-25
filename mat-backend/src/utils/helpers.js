@@ -33,7 +33,7 @@ function genTransferNo() {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   let s = '';
   for (let i = 0; i < 4; i++) s += ALPHABET[crypto.randomInt(ALPHABET.length)];
-  return `MAT-${yy}${mm}-${s}`;
+  return `RANE-${yy}${mm}-${s}`;
 }
 
 module.exports = { wrap, httpError, toApi, str, cleanUrl, isUuid, genTransferNo };

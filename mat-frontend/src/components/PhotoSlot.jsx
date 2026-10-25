@@ -19,15 +19,20 @@ async function compress(file) {
   }
 }
 
-const UploadIcon = () => (
+const Icon = ({ children }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 13v8" /><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2" /><path d="m8 17 4-4 4 4" />
-  </svg>
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+const UploadIcon = () => (
+  <Icon><path d="M12 13v8" /><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2" /><path d="m8 17 4-4 4 4" /></Icon>
+);
+const CameraIcon = () => (
+  <Icon><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3.5" /></Icon>
 );
 
 export default function PhotoSlot({ label, url, onChange, disabled, hint }) {
-  const ref = useRef(null);
+  const camRef = useRef(null);
+  const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -63,13 +68,25 @@ export default function PhotoSlot({ label, url, onChange, disabled, hint }) {
 
   return (
     <div className="upload">
-      <button type="button" className={'upload-box' + (url ? ' has' : '')} disabled={busy} onClick={() => ref.current.click()}>
-        {url ? <img className="upload-thumb" src={url} alt={label} /> : <UploadIcon />}
-        <span>{busy ? 'Uploading…' : url ? 'Photo added — tap to replace' : 'Upload photo'}</span>
-      </button>
-      {hint && <span className="field-hint">{hint}</span>}
+      {url && (
+        <div className="upload-preview">
+          <img className="upload-thumb" src={url} alt={label} />
+          <span>Photo added</span>
+        </div>
+      )}
+      <div className="upload-actions">
+        <button type="button" className="upload-box" disabled={busy} onClick={() => camRef.current.click()}>
+          <CameraIcon /><span>{url ? 'Retake photo' : 'Take photo'}</span>
+        </button>
+        <button type="button" className="upload-box" disabled={busy} onClick={() => fileRef.current.click()}>
+          <UploadIcon /><span>{url ? 'Replace photo' : 'Upload photo'}</span>
+        </button>
+      </div>
+      {busy && <span className="field-hint">Uploading…</span>}
+      {hint && !busy && <span className="field-hint">{hint}</span>}
       {err && <div className="upload-err">{err}</div>}
-      <input ref={ref} type="file" accept="image/*" hidden onChange={pick} />
+      <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={pick} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PhotoSlot from './PhotoSlot';
 
 // Every line the receiver can verify. id -> key stored in receiverReview.
@@ -30,6 +30,8 @@ export function reviewProgress(t, review) {
 
 function Verify({ id, review, onReview, readOnly, photo }) {
   const r = review[id] || {};
+  const [open, setOpen] = useState(!!r.remark);
+
   if (readOnly) {
     return (
       <div className="verify ro">
@@ -44,12 +46,20 @@ function Verify({ id, review, onReview, readOnly, photo }) {
       <div className="verify-top">
         <button type="button" className={'tick big' + (r.checked ? ' on' : '')} aria-pressed={!!r.checked}
           onClick={() => onReview(id, { checked: !r.checked })}>{r.checked ? '✓' : ''}</button>
-        <input className="mini" placeholder="Optional: add a remark" value={r.remark || ''}
-          onChange={(e) => onReview(id, { remark: e.target.value })} />
+        <span className="vlabel">{r.checked ? 'Verified' : 'Tick to verify'}</span>
+        <button type="button" className="btn ghost small-btn remark-btn" onClick={() => setOpen(!open)}>
+          {open ? 'Hide remark' : r.remark ? 'Edit remark' : 'Add remark'}
+        </button>
       </div>
+      {open && (
+        <input className="mini" maxLength={500} placeholder="Optional: add a remark" value={r.remark || ''}
+          onChange={(e) => onReview(id, { remark: e.target.value })} />
+      )}
       {photo && (
         <div className="verify-photo">
-          <PhotoSlot label="Your photo" url={r.photoUrl || ''} onChange={(u) => onReview(id, { photoUrl: u })} hint="Optional: upload your own photo of this item (max 10 MB)." />
+          <div className="item-label">Your photo against the provider photo</div>
+          <PhotoSlot label="Your photo" url={r.photoUrl || ''} onChange={(u) => onReview(id, { photoUrl: u })}
+            hint="Optional: take or upload your own photo of this item (max 10 MB)." />
         </div>
       )}
     </div>
@@ -72,26 +82,23 @@ export default function TransferReview({ t, review = {}, onReview, readOnly }) {
 
   const photoItem = (id, label, p) => (
     <div className="item" key={id}>
-      <div className="item-head">
-        <PhotoSlot label="Provider" url={p.url} disabled />
-        <div>
-          <div className="item-label">{label}</div>
-          {p.remark && <div className="muted">Provider remark: {p.remark}</div>}
-        </div>
-      </div>
+      <div className="item-label">{label}</div>
+      <PhotoSlot label="Provider photo" url={p.url} disabled />
+      {p.remark && <div className="muted prov-remark">Provider remark: {p.remark}</div>}
       {verify(id, true)}
     </div>
   );
 
   const checkItem = (id, c) => (
     <div className="item" key={id}>
+      {c.custom && <div className="item-label">Custom check</div>}
       <div className="item-val">{c.text}</div>
       <div className="muted">Provider: {c.checked ? '✓ Checked' : '✗ Not checked'}{c.remark ? ` · ${c.remark}` : ''}</div>
       {verify(id, false)}
     </div>
   );
 
-  const photoLabel = (p, i, noun) => p.label || `${noun} photo ${i + 1}`;
+  const photoLabel = (p, i, noun) => (p.label ? `${p.label} side` : `${noun} photo ${i + 1}`);
 
   return (
     <div>

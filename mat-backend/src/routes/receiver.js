@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const supabase = require('../db/supabaseClient');
 const { wrap, httpError, toApi, str, cleanUrl } = require('../utils/helpers');
 const { sign, requireScope } = require('../middleware/auth');
-const { sendAccessCode } = require('../utils/mailer');
+const { sendAccessCode, notifyVerification } = require('../utils/mailer');
 
 const router = express.Router();
 const CODE_MINUTES = 15;
@@ -45,7 +45,7 @@ router.post('/request-code', wrap(async (req, res) => {
     console.error('Email send failed:', e.message);
     throw httpError(502, 'Could not send the email. Check the SMTP settings on the server.');
   }
-  res.json({ ok: true, emailSent: mail.sent, devMode: !mail.sent });
+  res.json({ ok: true, emailSent: !!mail.sent, devMode: !!mail.dev });
 }));
 
 router.post('/verify', wrap(async (req, res) => {
@@ -109,7 +109,8 @@ router.post('/submit', requireScope('receiver'), wrap(async (req, res) => {
     .update({ receiver_review: review, status: 'verified', verified_at: new Date().toISOString() })
     .eq('id', t.id).select().single();
   if (error) throw error;
-  res.json(toApi(data));
+  const mail = await notifyVerification(data, review);
+  res.json({ ...toApi(data), providerNotified: !!mail.sent, mailDev: !!mail.dev });
 }));
 
 module.exports = router;

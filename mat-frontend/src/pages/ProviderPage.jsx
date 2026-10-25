@@ -10,19 +10,22 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const BLANK = {
   id: null, transferNo: '', machineName: '', sapNo: '', equipmentNo: '', sourcePlantId: '', destinationPlantId: '',
-  receiverEmail: '', machinePhotos: [], hasElectrical: false, electricalPhotos: [], electricalChecklist: [],
+  providerEmail: '', receiverEmail: '', machinePhotos: [], hasElectrical: false, electricalPhotos: [], electricalChecklist: [],
   hasMechanical: false, mechanicalPhotos: [], mechanicalChecklist: [], mechanicalOverallStatus: '',
   missingParameters: '', missingPhotoUrl: '', abnormalities: '', abnormalityPhotoUrl: '',
 };
 
 const keep = (arr, min = 0) => (arr || []).filter((p, i) => i < min || p.url);
+// blank custom checks are dropped before saving
+const cleanChecks = (arr) => (arr || []).filter((it) => !it.custom || it.text.trim());
 
 const payload = (t) => ({
   machineName: t.machineName, sapNo: t.sapNo, equipmentNo: t.equipmentNo,
-  sourcePlantId: t.sourcePlantId, destinationPlantId: t.destinationPlantId, receiverEmail: t.receiverEmail,
+  sourcePlantId: t.sourcePlantId, destinationPlantId: t.destinationPlantId,
+  providerEmail: t.providerEmail, receiverEmail: t.receiverEmail,
   machinePhotos: keep(t.machinePhotos, 4),
-  hasElectrical: t.hasElectrical, electricalPhotos: keep(t.electricalPhotos), electricalChecklist: t.electricalChecklist,
-  hasMechanical: t.hasMechanical, mechanicalPhotos: keep(t.mechanicalPhotos), mechanicalChecklist: t.mechanicalChecklist,
+  hasElectrical: t.hasElectrical, electricalPhotos: keep(t.electricalPhotos), electricalChecklist: cleanChecks(t.electricalChecklist),
+  hasMechanical: t.hasMechanical, mechanicalPhotos: keep(t.mechanicalPhotos), mechanicalChecklist: cleanChecks(t.mechanicalChecklist),
   mechanicalOverallStatus: t.mechanicalOverallStatus,
   missingParameters: t.missingParameters, missingPhotoUrl: t.missingPhotoUrl,
   abnormalities: t.abnormalities, abnormalityPhotoUrl: t.abnormalityPhotoUrl,
@@ -33,6 +36,7 @@ function validate(step, t) {
     if (!t.machineName.trim() || !t.sapNo.trim() || !t.equipmentNo.trim()) return 'Enter the machine name, SAP number and equipment number.';
     if (!t.sourcePlantId || !t.destinationPlantId) return 'Select both the source and destination plants.';
     if (t.sourcePlantId === t.destinationPlantId) return 'Source and destination plants must be different.';
+    if (!EMAIL_RE.test(t.providerEmail.trim())) return 'Enter your (provider) email address.';
     if (!EMAIL_RE.test(t.receiverEmail.trim())) return 'Enter a valid receiver email address.';
   }
   if (step === 1) {
@@ -85,12 +89,22 @@ function Checklist({ items, onChange }) {
           <button type="button" className={'tick' + (it.checked ? ' on' : '')} aria-pressed={it.checked}
             onClick={() => set(i, { checked: !it.checked })}>{it.checked ? '✓' : ''}</button>
           <div className="check-body">
-            <div>{it.text}</div>
+            {it.custom ? (
+              <input className="mini custom-text" maxLength={300} placeholder="Type your own check"
+                value={it.text} onChange={(e) => set(i, { text: e.target.value })} />
+            ) : (
+              <div className="kw">{it.text}</div>
+            )}
             <input className="mini" placeholder="Optional: add a remark" value={it.remark}
               onChange={(e) => set(i, { remark: e.target.value })} />
+            {it.custom && (
+              <button type="button" className="link danger" onClick={() => onChange(items.filter((_, j) => j !== i))}>Remove check</button>
+            )}
           </div>
         </div>
       ))}
+      <button type="button" className="btn ghost full"
+        onClick={() => onChange([...items, { text: '', checked: false, remark: '', custom: true }])}>Add custom check</button>
     </div>
   );
 }
@@ -127,7 +141,8 @@ export default function ProviderPage() {
       if (step === 0 && !t.id) {
         const created = await api.createTransfer({
           machineName: t.machineName, sapNo: t.sapNo, equipmentNo: t.equipmentNo,
-          sourcePlantId: t.sourcePlantId, destinationPlantId: t.destinationPlantId, receiverEmail: t.receiverEmail,
+          sourcePlantId: t.sourcePlantId, destinationPlantId: t.destinationPlantId,
+          providerEmail: t.providerEmail, receiverEmail: t.receiverEmail,
         });
         localStorage.setItem(DRAFT_KEY, created.id);
         setT({ ...BLANK, ...created });
@@ -177,7 +192,10 @@ export default function ProviderPage() {
           <h2>Request sent</h2>
           <p className="muted">Share this transfer number with the receiving plant:</p>
           <div className="tn-big">{done.transferNo}</div>
-          <p className="muted">The receiver opens <b>Asset Receiver</b>, enters this number and the email <b>{done.receiverEmail}</b>, and gets an access code by email.</p>
+          <p className="muted">The receiver opens <b>Asset Receiver</b>, enters this number and the email <b>{done.receiverEmail}</b>, and gets an access code by email. You will be emailed at <b>{done.providerEmail}</b> when the receiver responds.</p>
+          {done.mail && done.mail.dev && <Alert kind="info">Email is not configured on the server yet, so the emails were printed in the backend terminal.</Alert>}
+          {done.mail && !done.mail.dev && done.mail.receiver && done.mail.provider && <Alert kind="success">Emails sent to the receiver and to you.</Alert>}
+          {done.mail && !done.mail.dev && !(done.mail.receiver && done.mail.provider) && <Alert>Some emails could not be sent. Please give the transfer number to the receiver directly.</Alert>}
           <button className="btn primary full" onClick={startNew}>Start another transfer</button>
         </div>
       </div>
@@ -244,6 +262,9 @@ export default function ProviderPage() {
               </select>
             </Field>
           </div>
+          <Field label="Provider email" required hint="Required: you will be emailed here when the receiver responds.">
+            <input type="email" inputMode="email" placeholder="you@company.com" value={t.providerEmail} onChange={(e) => set({ providerEmail: e.target.value })} />
+          </Field>
           <Field label="Receiver email" required hint="Required: the receiver needs this email and the transfer number to get an access code.">
             <input type="email" inputMode="email" placeholder="name@company.com" value={t.receiverEmail} onChange={(e) => set({ receiverEmail: e.target.value })} />
           </Field>
@@ -315,6 +336,7 @@ export default function ProviderPage() {
           <div className="card summary">
             <div><span className="muted">Transfer</span> <b>{t.transferNo}</b></div>
             <div><span className="muted">Machine</span> {t.machineName}</div>
+            <div><span className="muted">Provider email</span> {t.providerEmail}</div>
             <div><span className="muted">Receiver email</span> {t.receiverEmail}</div>
             <div><span className="muted">Electrical</span> {t.hasElectrical ? 'Included' : 'No'} · <span className="muted">Mechanical</span> {t.hasMechanical ? 'Included' : 'No'}</div>
           </div>

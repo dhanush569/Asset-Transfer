@@ -60,6 +60,7 @@ function Detail({ token, id, onBack, onAuthError }) {
           <div className="card summary">
             <div className="list-top"><b>{t.machineName}</b><Badge s={t.status} /></div>
             <div><span className="muted">Route</span> {t.sourcePlantName} → {t.destinationPlantName}</div>
+            <div><span className="muted">Provider email</span> {t.providerEmail || '—'}</div>
             <div><span className="muted">Receiver email</span> {t.receiverEmail}</div>
             <div><span className="muted">Sent by provider</span> {fmt(t.sentAt)}</div>
             <div><span className="muted">Receiver verified</span> {t.status === 'verified' ? fmt(t.verifiedAt) : 'Waiting for receiver'}</div>
