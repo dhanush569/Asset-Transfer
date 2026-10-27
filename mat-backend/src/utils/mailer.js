@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { buildReport } = require('./reportPdf');
 
 let transporter = null;
 function getTransporter() {
@@ -21,13 +22,14 @@ const appUrl = () => (process.env.APP_URL || 'http://localhost:3000').replace(/\
 const fromAddr = () => process.env.MAIL_FROM || process.env.SMTP_USER;
 
 // Sends one email. Without SMTP settings (local dev) it prints the email in the backend terminal.
-async function deliver({ to, subject, text, html }) {
+async function deliver({ to, subject, text, html, attachments }) {
   const t = getTransporter();
   if (!t) {
-    console.log(`\n[MAIL DEV MODE - SMTP not configured]\nTo: ${to}\nSubject: ${subject}\n${text}\n`);
+    const att = (attachments || []).map((a) => `${a.filename} (${Math.round(a.content.length / 1024)} KB)`).join(', ');
+    console.log(`\n[MAIL DEV MODE - SMTP not configured]\nTo: ${to}\nSubject: ${subject}${att ? `\nAttachment: ${att}` : ''}\n${text}\n`);
     return { sent: false, dev: true };
   }
-  await t.sendMail({ from: fromAddr(), to, subject, text, html });
+  await t.sendMail({ from: fromAddr(), to, subject, text, html, attachments });
   return { sent: true };
 }
 
@@ -42,7 +44,7 @@ async function safe(payload) {
 }
 
 const shell = (title, inner) => `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#000;line-height:1.5">
-<div style="padding:18px 0;border-bottom:3px solid #F0B31C;font-size:22px;font-weight:700;letter-spacing:2px">RANE</div>
+<div style="padding:14px 0;border-bottom:3px solid #F0B31C"><img src="${esc(appUrl())}/logo.png" alt="RANE" height="52" style="height:52px;display:block;border:0;font-size:22px;font-weight:700;letter-spacing:2px"></div>
 <h2 style="font-size:18px;margin:22px 0 12px">${esc(title)}</h2>${inner}
 <p style="color:#777;font-size:12px;margin-top:28px">Machine Asset Transfer &middot; automated message, please do not reply.</p></div>`;
 const button = (href, label) => `<p><a href="${esc(href)}" style="display:inline-block;background:#000;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">${esc(label)}</a></p>`;
@@ -115,6 +117,12 @@ function reviewSummary(t, review) {
 // 4. Receiver submitted: tell the provider what the receiver said
 async function notifyVerification(t, review) {
   const s = reviewSummary(t, review);
+  let attachments;
+  try {
+    attachments = [{ filename: `${t.transfer_no}-verification-report.pdf`, content: await buildReport(t, review), contentType: 'application/pdf' }];
+  } catch (e) {
+    console.error('PDF report failed (email is sent without it):', e.message);
+  }
   const lines = [`Verified ${s.ticked} of ${s.total} items.`];
   if (s.notTicked.length) lines.push(`Not verified: ${s.notTicked.slice(0, 15).join('; ')}${s.notTicked.length > 15 ? '; ...' : ''}`);
   if (s.remarks.length) lines.push('Receiver remarks:', ...s.remarks.slice(0, 25).map((x) => `- ${x.label}: ${x.remark}`));
@@ -124,12 +132,14 @@ async function notifyVerification(t, review) {
     `<table>${row('Machine', t.machine_name)}${row('Route', `${t.source_plant_name} -> ${t.destination_plant_name}`)}${row('Verified', `${s.ticked} of ${s.total} items`)}</table>`
     + (s.notTicked.length ? `<p><b>Not verified</b></p>${list(s.notTicked.slice(0, 15).map((x) => `<li>${esc(x)}</li>`))}` : '<p style="color:#1E7A46"><b>Every item was verified.</b></p>')
     + (s.remarks.length ? `<p><b>Receiver remarks</b></p>${list(s.remarks.slice(0, 25).map((x) => `<li>${esc(x.label)}: ${esc(x.remark)}</li>`))}` : '')
-    + (s.photos.length ? `<p><b>Receiver photos</b></p>${list(s.photos.slice(0, 25).map((x) => `<li><a href="${esc(x.url)}">${esc(x.label)}</a></li>`))}` : ''));
+    + (s.photos.length ? `<p><b>Receiver photos</b></p>${list(s.photos.slice(0, 25).map((x) => `<li><a href="${esc(x.url)}">${esc(x.label)}</a></li>`))}` : '')
+    + (attachments ? '<p>The full verification report (PDF) is attached.</p>' : ''));
   return safe({
     to: t.provider_email,
     subject: `${t.transfer_no} - receiver has responded`,
-    text: `The receiver has responded to transfer ${t.transfer_no} (${t.machine_name}).\n\n${lines.join('\n')}`,
+    text: `The receiver has responded to transfer ${t.transfer_no} (${t.machine_name}).\n\n${lines.join('\n')}${attachments ? '\n\nThe full verification report (PDF) is attached.' : ''}`,
     html,
+    attachments,
   });
 }
 

@@ -263,10 +263,10 @@ export default function ProviderPage() {
             </Field>
           </div>
           <Field label="Provider email" required hint="Required: you will be emailed here when the receiver responds.">
-            <input type="email" inputMode="email" placeholder="you@company.com" value={t.providerEmail} onChange={(e) => set({ providerEmail: e.target.value })} />
+            <input type="email" inputMode="email" name="provider_email" autoComplete="email" autoCapitalize="none" placeholder="you@company.com" value={t.providerEmail} onChange={(e) => set({ providerEmail: e.target.value })} />
           </Field>
           <Field label="Receiver email" required hint="Required: the receiver needs this email and the transfer number to get an access code.">
-            <input type="email" inputMode="email" placeholder="name@company.com" value={t.receiverEmail} onChange={(e) => set({ receiverEmail: e.target.value })} />
+            <input type="text" inputMode="email" name="recipient_address" autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="name@company.com" value={t.receiverEmail} onChange={(e) => set({ receiverEmail: e.target.value })} />
           </Field>
           <div className="field-hint">A unique transfer number is generated when you continue.</div>
         </div>

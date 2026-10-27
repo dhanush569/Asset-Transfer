@@ -275,3 +275,7 @@ input.mini { font-size: 16px; }
   .upload-actions { gap: 8px; }
   .upload-actions .upload-box { font-size: 14px; padding: 8px 6px; gap: 6px; }
 }
+
+/* ---- Rane logo in the header ---- */
+.brand img { height: 56px; width: auto; max-width: 220px; mix-blend-mode: multiply; }
+@media (max-width: 760px) { .brand img { height: 46px; } }
